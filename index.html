@@ -5,45 +5,89 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Basic Studio Code</title>
     <link rel="icon" href="icon.png">
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #1E3A8A; /* Azul sólido */
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: #FFFFFF; /* Branco */
-            font-family: Arial, sans-serif;
-        }
-        h1 {
-            font-size: 2em;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        button {
-            padding: 15px 30px;
-            font-size: 1em;
-            background-color: #2563EB;
-            border: none;
-            border-radius: 8px;
-            color: #FFFFFF;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #1E40AF;
-        }
-    </style>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <h1>Bem-vindo ao Basic Studio Code</h1>
-    <button onclick="startEditor()">Iniciar Editor</button>
+<body class="bg-primary text-white d-flex flex-column justify-content-center align-items-center">
+    <div class="container text-center">
+        <h1 class="mb-4">Basic Studio Code</h1>
+        <div class="d-flex flex-column align-items-center gap-3">
+            <button class="btn btn-light text-primary btn-lg w-100" onclick="createNewProject()">
+                <i class="fas fa-plus-circle me-2"></i> Novo Projeto
+            </button>
+            <button class="btn btn-light text-primary btn-lg w-100" onclick="loadExistingProject()">
+                <i class="fas fa-folder-open me-2"></i> Carregar Projeto
+            </button>
+        </div>
+    </div>
 
+    <!-- Modal para Selecionar Projeto Existente -->
+    <div class="modal fade" id="loadProjectModal" tabindex="-1" aria-labelledby="loadProjectModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark text-white">
+          <div class="modal-header">
+            <h5 class="modal-title" id="loadProjectModalLabel">Projetos Salvos</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+          </div>
+          <div class="modal-body">
+            <ul class="list-group" id="projectList">
+              <!-- Projetos serão listados aqui dinamicamente -->
+            </ul>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS e Dependências -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
     <script>
-        function startEditor() {
-            window.location.href = 'editor.html';
+        function createNewProject() {
+            const projectName = prompt("Digite o nome do novo projeto:");
+            if (projectName) {
+                const projects = JSON.parse(localStorage.getItem('projects')) || {};
+                if (projects[projectName]) {
+                    alert("Um projeto com esse nome já existe!");
+                } else {
+                    projects[projectName] = { files: {} };
+                    localStorage.setItem('projects', JSON.stringify(projects));
+                    window.location.href = `editor.html?project=${encodeURIComponent(projectName)}`;
+                }
+            }
+        }
+
+        function loadExistingProject() {
+            const projects = JSON.parse(localStorage.getItem('projects')) || {};
+            const projectList = document.getElementById('projectList');
+            projectList.innerHTML = '';
+
+            if (Object.keys(projects).length === 0) {
+                projectList.innerHTML = '<li class="list-group-item bg-secondary text-center">Nenhum projeto salvo.</li>';
+            } else {
+                for (let project in projects) {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item bg-dark text-white d-flex justify-content-between align-items-center';
+                    li.innerHTML = `
+                        ${project}
+                        <button class="btn btn-sm btn-primary" onclick="openProject('${project}')">Abrir</button>
+                    `;
+                    projectList.appendChild(li);
+                }
+            }
+
+            const loadProjectModal = new bootstrap.Modal(document.getElementById('loadProjectModal'));
+            loadProjectModal.show();
+        }
+
+        function openProject(projectName) {
+            window.location.href = `editor.html?project=${encodeURIComponent(projectName)}`;
         }
     </script>
 </body>

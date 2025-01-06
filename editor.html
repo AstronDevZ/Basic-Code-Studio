@@ -5,117 +5,269 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editor - Basic Studio Code</title>
     <link rel="icon" href="icon.png">
-    <!-- Estilos do Monaco Editor -->
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Monaco Editor CSS -->
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            background-color: #FFFFFF; /* Fundo branco */
-            display: flex;
-            flex-direction: column;
-        }
-        #header {
-            background-color: #1E3A8A; /* Azul sólido */
-            color: #FFFFFF;
-            padding: 10px;
-            text-align: center;
-            font-size: 1.2em;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        #toolbar {
-            display: flex;
-            gap: 10px;
-        }
-        #toolbar button, #toolbar select {
-            padding: 8px 12px;
-            background-color: #2563EB;
-            border: none;
-            border-radius: 5px;
-            color: #FFFFFF;
-            cursor: pointer;
-            font-size: 0.9em;
-        }
-        #toolbar button:hover, #toolbar select:hover {
-            background-color: #1E40AF;
-        }
-        #editor-container {
-            flex: 1;
-            position: relative;
-        }
         #editor {
             width: 100%;
-            height: 100%;
+            height: 80vh;
+        }
+        .tab {
+            cursor: pointer;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            background-color: #f1f1f1;
+            margin-right: 2px;
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+        }
+        .tab.active {
+            background-color: #fff;
+            border-color: #ccc #ccc #fff #ccc;
+        }
+        #tabsContainer {
+            display: flex;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #ccc;
+            background-color: #f1f1f1;
         }
     </style>
-    <!-- Monaco Editor CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.33.0/min/vs/loader.min.js"></script>
 </head>
-<body>
-    <div id="header">
-        <div>Basic Studio Code</div>
-        <div id="toolbar">
-            <select id="language-select">
-                <option value="javascript">JavaScript</option>
-                <option value="python">Python</option>
-                <option value="cpp">C++</option>
-                <option value="java">Java</option>
-                <option value="html">HTML</option>
-                <option value="css">CSS</option>
-                <option value="json">JSON</option>
-                <!-- Adicione mais linguagens conforme necessário -->
+<body class="bg-light d-flex flex-column">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">Basic Studio Code</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" 
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Alterna navegação">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          </ul>
+          <form class="d-flex">
+            <button class="btn btn-outline-light me-2" type="button" onclick="saveProject()">Salvar Projeto</button>
+            <button class="btn btn-outline-light me-2" type="button" onclick="downloadProject()">Baixar Projeto</button>
+            <select class="form-select me-2" id="theme-select" onchange="changeTheme(this.value)">
+                <option value="vs-dark">Tema Escuro</option>
+                <option value="vs-light">Tema Claro</option>
             </select>
-            <button onclick="saveCode()">Salvar</button>
-            <button onclick="downloadCode()">Baixar</button>
+            <button class="btn btn-outline-light" type="button" onclick="addNewFile()">Adicionar Arquivo</button>
+          </form>
         </div>
-    </div>
-    <div id="editor-container">
-        <div id="editor"></div>
+      </div>
+    </nav>
+
+    <!-- Container de Abas (Tabs) -->
+    <div id="tabsContainer" class="bg-light">
+        <!-- Abas serão adicionadas dinamicamente -->
     </div>
 
+    <!-- Editor Monaco -->
+    <div id="editor"></div>
+
+    <!-- Bootstrap JS e Dependências -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Monaco Editor Loader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.33.0/min/vs/loader.min.js"></script>
+    <!-- Custom JS -->
     <script>
+        let editor;
+        let projectName = "";
+        let projects = {};
+        let currentFile = "";
+        let files = {};
+
+        // Função para carregar o projeto a partir dos parâmetros da URL
+        function loadProject() {
+            const urlParams = new URLSearchParams(window.location.search);
+            projectName = urlParams.get('project');
+            if (!projectName) {
+                alert("Nenhum projeto selecionado!");
+                window.location.href = 'index.html';
+                return;
+            }
+
+            projects = JSON.parse(localStorage.getItem('projects')) || {};
+            if (!projects[projectName]) {
+                alert("Projeto não encontrado!");
+                window.location.href = 'index.html';
+                return;
+            }
+
+            files = projects[projectName].files || {};
+
+            // Se não houver arquivos, crie um arquivo padrão
+            if (Object.keys(files).length === 0) {
+                files['main.js'] = '';
+            }
+
+            // Carregar o primeiro arquivo
+            currentFile = Object.keys(files)[0];
+            createTab(currentFile);
+        }
+
+        // Inicialização do Monaco Editor
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.33.0/min/vs' }});
         require(['vs/editor/editor.main'], function() {
-            window.editor = monaco.editor.create(document.getElementById('editor'), {
+            editor = monaco.editor.create(document.getElementById('editor'), {
                 value: '',
                 language: 'javascript',
-                theme: 'vs-light', // Você pode personalizar o tema
+                theme: 'vs-dark',
                 automaticLayout: true,
                 fontSize: 14,
                 minimap: { enabled: false },
             });
 
-            // Carregar código salvo, se existir
-            var saved = localStorage.getItem('savedCode');
-            if (saved) {
-                editor.setValue(saved);
+            loadProject();
+        });
+
+        // Função para criar uma nova aba (tab)
+        function createTab(fileName) {
+            const tabsContainer = document.getElementById('tabsContainer');
+
+            // Verificar se a aba já existe
+            if (document.getElementById(`tab-${fileName}`)) {
+                switchTab(fileName);
+                return;
             }
-        });
 
-        // Alterar linguagem do editor
-        document.getElementById('language-select').addEventListener('change', function() {
-            var language = this.value;
+            // Criar elemento da aba
+            const tab = document.createElement('div');
+            tab.className = 'tab';
+            tab.id = `tab-${fileName}`;
+            tab.innerHTML = `
+                ${fileName}
+                <i class="fas fa-times ms-2" onclick="closeTab('${fileName}', event)"></i>
+            `;
+            tab.onclick = () => switchTab(fileName);
+
+            tabsContainer.appendChild(tab);
+            switchTab(fileName);
+        }
+
+        // Função para alternar entre abas
+        function switchTab(fileName) {
+            currentFile = fileName;
+
+            // Atualizar o tema do editor conforme seleção
+            const theme = document.getElementById('theme-select').value;
+            monaco.editor.setTheme(theme);
+
+            // Atualizar abas ativas
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            const activeTab = document.getElementById(`tab-${fileName}`);
+            if (activeTab) activeTab.classList.add('active');
+
+            // Carregar o conteúdo do arquivo no editor
+            editor.setValue(files[fileName] || '');
+
+            // Atualizar a linguagem do editor com base na extensão do arquivo
+            const language = getLanguageFromFile(fileName);
             monaco.editor.setModelLanguage(editor.getModel(), language);
-        });
 
-        // Função para salvar o código localmente
-        function saveCode() {
-            localStorage.setItem('savedCode', editor.getValue());
-            alert('Código salvo localmente!');
+            // Listener para salvar automaticamente ao editar
+            editor.onDidChangeModelContent(() => {
+                files[fileName] = editor.getValue();
+                saveToLocalStorage();
+            });
         }
 
-        // Função para baixar o código como arquivo
-        function downloadCode() {
-            var blob = new Blob([editor.getValue()], { type: 'text/plain' });
-            var a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            var language = document.getElementById('language-select').value;
-            a.download = 'codigo.' + (language === 'cpp' ? 'cpp' : language);
-            a.click();
-            URL.revokeObjectURL(a.href);
+        // Função para fechar uma aba
+        function closeTab(fileName, event) {
+            event.stopPropagation();
+            const tab = document.getElementById(`tab-${fileName}`);
+            if (tab) tab.remove();
+            delete files[fileName];
+            saveToLocalStorage();
+
+            // Se fechar a aba atual, abrir a próxima disponível
+            if (currentFile === fileName) {
+                const remainingFiles = Object.keys(files);
+                if (remainingFiles.length > 0) {
+                    switchTab(remainingFiles[0]);
+                } else {
+                    addNewFile();
+                }
+            }
         }
+
+        // Função para adicionar um novo arquivo
+        function addNewFile() {
+            const fileName = prompt("Digite o nome do novo arquivo (ex: index.html, script.js):");
+            if (fileName) {
+                if (files[fileName]) {
+                    alert("Um arquivo com esse nome já existe!");
+                    return;
+                }
+                files[fileName] = '';
+                createTab(fileName);
+                saveToLocalStorage();
+            }
+        }
+
+        // Função para salvar o projeto no `localStorage`
+        function saveProject() {
+            projects[projectName].files = files;
+            localStorage.setItem('projects', JSON.stringify(projects));
+            alert("Projeto salvo com sucesso!");
+        }
+
+        // Função para baixar o projeto como arquivo ZIP
+        function downloadProject() {
+            const zip = new JSZip();
+            for (let file in files) {
+                zip.file(file, files[file]);
+            }
+            zip.generateAsync({ type: "blob" })
+            .then(function(content) {
+                saveAs(content, `${projectName}.zip`);
+            });
+        }
+
+        // Função para alterar o tema do editor
+        function changeTheme(theme) {
+            monaco.editor.setTheme(theme);
+        }
+
+        // Função para determinar a linguagem com base na extensão do arquivo
+        function getLanguageFromFile(fileName) {
+            const extension = fileName.split('.').pop();
+            const languages = {
+                'js': 'javascript',
+                'py': 'python',
+                'cpp': 'cpp',
+                'java': 'java',
+                'html': 'html',
+                'css': 'css',
+                'json': 'json',
+                'csharp': 'csharp',
+                'ts': 'typescript',
+                'rb': 'ruby',
+                'php': 'php',
+                // Adicione mais extensões conforme necessário
+            };
+            return languages[extension] || 'plaintext';
+        }
+
+        // Função para salvar o estado atual no `localStorage`
+        function saveToLocalStorage() {
+            projects[projectName].files = files;
+            localStorage.setItem('projects', JSON.stringify(projects));
+        }
+
+        // Adicionar suporte a download de arquivos
+        // Inclua as bibliotecas JSZip e FileSaver.js via CDN
     </script>
+    <!-- JSZip e FileSaver.js para download de projetos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </body>
 </html>
